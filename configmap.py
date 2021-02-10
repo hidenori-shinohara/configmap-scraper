@@ -12,6 +12,8 @@ for line in runCmd("kubectl get pod").split():
         pref = line[4:16]
 
 myTemplate = "kubectl get configmap ssc-{}-sts-{}-cfg-map -o yaml"
-name = sys.argv[1]
+name = "www-stellar-org-0"
+if len(sys.argv) >= 2:
+    name = sys.argv[1]
 cmd = myTemplate.format(pref, name)
 print runCmd(cmd)
