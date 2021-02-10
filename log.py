@@ -1,3 +1,5 @@
+# Run this using
+# eval "$(python ~/kubectlutil/log.py)"
 import subprocess
 import sys
 
