@@ -16,4 +16,4 @@ name = "www-stellar-org-0"
 if len(sys.argv) >= 2:
     name = sys.argv[1]
 cmd = myTemplate.format(pref, name)
-print "Run\n{}\n".format(cmd)
+print cmd
