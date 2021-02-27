@@ -46,36 +46,38 @@ def configmap(args):
                 cleanPreferredPeers(parsed_toml[PREFERRED_PEERS], args)
                 cleanQuorumSet(parsed_toml[QUORUM_SET])
             print(toml.dumps(parsed_toml))
+def httpCommand(args):
+    #TODO
+    return
 
-def addConfigmapParser(subparsers):
-    parser_configmap = subparsers.add_parser("configmap",
-                                           help="Get the configmap")
-    parser_configmap.add_argument("-n",
+def addNodeArgument(parser):
+    parser.add_argument("-n",
           "--node",
           default="www-stellar-org-0",
           help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
 
-    parser_configmap.add_argument("-r",
+def addConfigmapParser(subparsers):
+    parserConfigMap = subparsers.add_parser("configmap",
+                                           help="Get the configmap")
+    addNodeArgument(parserConfigMap)
+    parserConfigMap.add_argument("-r",
           "--raw",
           action='store_true',
           help="Optional flag to output the raw configmap. If not set, it simplifies the output")
 
-    parser_configmap.set_defaults(func=configmap)
+    parserConfigMap.set_defaults(func=configmap)
 
 def addHttpCommandParser(subparsers):
-    parser_httpCommand = subparsers.add_parser("http",
+    parserHttpCommand = subparsers.add_parser("http",
                                            help="Run http command")
-    parser_httpCommand.add_argument("-n",
-          "--node",
-          default="www-stellar-org-0",
-          help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
+    addNodeArgument(parserHttpCommand)
 
-    parser_httpCommand.add_argument("-c",
+    parserHttpCommand.add_argument("-c",
           "--command",
           default="info",
           help="HTTP command to run. If not set, it runs info")
 
-    parser_httpCommand.set_defaults(func=httpCommand)
+    parserHttpCommand.set_defaults(func=httpCommand)
 
 
 def main():
