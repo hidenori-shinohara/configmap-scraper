@@ -38,10 +38,9 @@ def cleanQuorumSet(quroumSet):
     return
 
 def configmap(args):
-    name = args.node if args.node else "www-stellar-org-0"
     configMapList = getConfigMapList(args)
     for configMap in configMapList.items:
-        if name in configMap.metadata.name:
+        if args.node in configMap.metadata.name:
             parsed_toml = toml.loads(configMap.data['stellar-core.cfg'])
             if not args.raw:
                 cleanPreferredPeers(parsed_toml[PREFERRED_PEERS], args)
@@ -53,7 +52,7 @@ def addConfigmapParser(subparsers):
                                            help="Get the configmap")
     parser_configmap.add_argument("-n",
           "--node",
-          required=False,
+          default="www-stellar-org-0",
           help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
 
     parser_configmap.add_argument("-r",
@@ -62,6 +61,21 @@ def addConfigmapParser(subparsers):
           help="Optional flag to output the raw configmap. If not set, it simplifies the output")
 
     parser_configmap.set_defaults(func=configmap)
+
+def addHttpCommandParser(subparsers):
+    parser_httpCommand = subparsers.add_parser("http",
+                                           help="Run http command")
+    parser_httpCommand.add_argument("-n",
+          "--node",
+          default="www-stellar-org-0",
+          help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
+
+    parser_httpCommand.add_argument("-c",
+          "--command",
+          default="info",
+          help="HTTP command to run. If not set, it runs info")
+
+    parser_httpCommand.set_defaults(func=httpCommand)
 
 
 def main():
@@ -72,6 +86,7 @@ def main():
 
     subparsers = argument_parser.add_subparsers()
     addConfigmapParser(subparsers)
+    addHttpCommandParser(subparsers)
 
     args = argument_parser.parse_args()                              
     args.func(args)
