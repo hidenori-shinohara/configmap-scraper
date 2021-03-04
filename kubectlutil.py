@@ -1,7 +1,10 @@
 import argparse
 import random
+import re
 import toml
+import ipaddress
 import subprocess
+import json
 from kubernetes.client.rest import ApiException
 from kubernetes import client, config
 
@@ -23,9 +26,10 @@ def getConfigMapList(args):
     return v1.list_namespaced_config_map(args.namespace)
 
 
-def getip2podname():
+def getip2podname(args):
     ip2podname = dict()
-    for item in ret.items:
+    podList = getPodList(args)
+    for item in podList.items:
         ip2podname[item.status.pod_ip] = item.metadata.name
     return ip2podname
 
@@ -59,12 +63,14 @@ def getPodName(args):
             return podName
     return "not found"
 
-def httpCommand(args):
-    podName = getPodName(args)
+def getCurlCommand(podName, cmd):
     # TODO: Find out a way to get ingress from the API.
     template = 'curl {}.stellar-supercluster.kube001.services.stellar-ops.com/{}/core/{}'
-    cmd = template.format(podName[:16], podName, args.command)
-    process = subprocess.Popen(cmd.split())
+    return template.format(podName[:16], podName, cmd)
+
+def httpCommand(args):
+    podName = getPodName(args)
+    process = subprocess.Popen(getCurlCommand(podName, args.command).split())
     process.communicate()
 
 def monitor(args):
@@ -103,20 +109,40 @@ def logs(args):
         print('Found exception in reading the logs')
         print(e)
 
+def peers(args):
+    podName = getPodName(args)
+    cmd = getCurlCommand(podName, "peers")
+    print("Running {}".format(cmd))
+    results = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
+    content = json.loads(results.stdout)
+    ls = content["authenticated_peers"]["inbound"] + content["authenticated_peers"]["outbound"]
+    ip2podname = getip2podname(args)
+    for node in ls:
+        ipWithPort = node["address"]
+        ip = re.match(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', ipWithPort)[0]
+        podname = ip2podname[ip]
+        if not args.raw:
+            podname = podname[21:]
+        print(podname)
+    return
+
 def addNodeArgument(parser):
     parser.add_argument("-n",
           "--node",
           default="www-stellar-org-0",
           help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
 
+def addRaw(parser):
+    parser.add_argument("-r",
+          "--raw",
+          action='store_true',
+          help="Optional flag to output with as little modification as possible")
+
 def addConfigmapParser(subparsers):
     parserConfigMap = subparsers.add_parser("configmap",
                                            help="Get the configmap")
     addNodeArgument(parserConfigMap)
-    parserConfigMap.add_argument("-r",
-          "--raw",
-          action='store_true',
-          help="Optional flag to output the raw configmap. If not set, it simplifies the output")
+    addRaw(parserConfigMap)
 
     parserConfigMap.set_defaults(func=configmap)
 
@@ -144,6 +170,11 @@ def addLogsParser(subparsers):
 
     parserLogs.set_defaults(func=logs)
 
+def addPeersParser(subparsers):
+    parserPeers = subparsers.add_parser("peers", help="List all the peers")
+    addNodeArgument(parserPeers)
+    addRaw(parserPeers)
+    parserPeers.set_defaults(func=peers)
 
 def main():
     argument_parser = argparse.ArgumentParser()
@@ -157,6 +188,7 @@ def main():
     addHttpCommandParser(subparsers)
     addMonitorParser(subparsers)
     addLogsParser(subparsers)
+    addPeersParser(subparsers)
 
     args = argument_parser.parse_args()                              
     args.func(args)
