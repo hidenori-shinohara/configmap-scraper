@@ -2,22 +2,24 @@ import argparse
 import random
 import toml
 import subprocess
+from kubernetes.client.rest import ApiException
 from kubernetes import client, config
 
 PREFERRED_PEERS = "PREFERRED_PEERS"
 QUORUM_SET = "QUORUM_SET"
 
-def getPodList(args):
+def getCoreV1Api():
     config.load_kube_config()
 
-    v1 = client.CoreV1Api()
+    return client.CoreV1Api()
+
+def getPodList(args):
+    v1 = getCoreV1Api()
     a = v1.list_namespaced_config_map(args.namespace)
     return v1.list_namespaced_pod(args.namespace)
 
 def getConfigMapList(args):
-    config.load_kube_config()
-
-    v1 = client.CoreV1Api()
+    v1 = getCoreV1Api()
     return v1.list_namespaced_config_map(args.namespace)
 
 
@@ -49,13 +51,16 @@ def configmap(args):
                 cleanQuorumSet(parsed_toml[QUORUM_SET])
             print(toml.dumps(parsed_toml))
 
-def httpCommand(args):
+def getPodName(args):
     podList = getPodList(args)
-    podName = "not found"
     for pod in podList.items:
         podName = pod.metadata.name
         if args.node in podName:
-            break
+            return podName
+    return "not found"
+
+def httpCommand(args):
+    podName = getPodName(args)
     # TODO: Find out a way to get ingress from the API.
     template = 'curl {}.stellar-supercluster.kube001.services.stellar-ops.com/{}/core/{}'
     cmd = template.format(podName[:16], podName, args.command)
@@ -87,7 +92,16 @@ def monitor(args):
             examplePodNames += "..."
         print("{} => {} pods: {}".format(status, len(podNameList), examplePodNames))
 
-    return
+def logs(args):
+    try:
+        v1 = getCoreV1Api()
+        apiResponse = v1.read_namespaced_pod_log(name=getPodName(args),
+                                                 namespace=args.namespace,
+                                                 container="stellar-core-run")
+        print(apiResponse)
+    except ApiException as e:
+        print('Found exception in reading the logs')
+        print(e)
 
 def addNodeArgument(parser):
     parser.add_argument("-n",
@@ -124,6 +138,12 @@ def addMonitorParser(subparsers):
     addNodeArgument(parserMonitor)
     parserMonitor.set_defaults(func=monitor)
 
+def addLogsParser(subparsers):
+    parserLogs = subparsers.add_parser("logs", help="Get the logs")
+    addNodeArgument(parserLogs)
+
+    parserLogs.set_defaults(func=logs)
+
 
 def main():
     argument_parser = argparse.ArgumentParser()
@@ -136,6 +156,7 @@ def main():
     addConfigmapParser(subparsers)
     addHttpCommandParser(subparsers)
     addMonitorParser(subparsers)
+    addLogsParser(subparsers)
 
     args = argument_parser.parse_args()                              
     args.func(args)
