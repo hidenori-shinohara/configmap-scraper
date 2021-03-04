@@ -49,11 +49,13 @@ def configmap(args):
     configMapList = getConfigMapList(args)
     for configMap in configMapList.items:
         if args.node in configMap.metadata.name:
-            parsed_toml = toml.loads(configMap.data['stellar-core.cfg'])
+            result = configMap.data['stellar-core.cfg']
             if not args.raw:
-                cleanPreferredPeers(parsed_toml[PREFERRED_PEERS], args)
-                cleanQuorumSet(parsed_toml[QUORUM_SET])
-            print(toml.dumps(parsed_toml))
+                parsedToml = toml.loads(result)
+                cleanPreferredPeers(parsedToml[PREFERRED_PEERS], args)
+                cleanQuorumSet(parsedToml[QUORUM_SET])
+                result = json.dumps(parsedToml, sort_keys=True, indent=4)
+            print(result)
 
 def getPodName(args):
     podList = getPodList(args)
