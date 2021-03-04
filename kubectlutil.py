@@ -1,4 +1,5 @@
 import argparse
+import random
 import toml
 import subprocess
 from kubernetes import client, config
@@ -61,6 +62,32 @@ def httpCommand(args):
     process = subprocess.Popen(cmd.split())
     process.communicate()
 
+def monitor(args):
+    podList = getPodList(args)
+    podNamesPerStatus = dict()
+    totalCount = 0
+    for pod in podList.items:
+        totalCount += 1
+        status = pod.status.phase
+        name = pod.metadata.name
+        if status not in podNamesPerStatus:
+            podNamesPerStatus[status] = []
+        podNamesPerStatus[status].append(name)
+    print("{} pods total".format(totalCount))
+    for status in podNamesPerStatus:
+        examplePodNames = ""
+        podNameList = podNamesPerStatus[status]
+        random.shuffle(podNameList)
+        maxNumberToPrint = 5
+        for i in range(min(maxNumberToPrint, len(podNameList))):
+            if i > 0:
+                examplePodNames += ", "
+            examplePodNames += podNameList[i][21:]
+        if len(podNameList) > maxNumberToPrint:
+            examplePodNames += "..."
+        print("{} => {} pods: {}".format(status, len(podNameList), examplePodNames))
+
+    return
 
 def addNodeArgument(parser):
     parser.add_argument("-n",
@@ -91,6 +118,12 @@ def addHttpCommandParser(subparsers):
 
     parserHttpCommand.set_defaults(func=httpCommand)
 
+def addMonitorParser(subparsers):
+    parserMonitor = subparsers.add_parser("monitor",
+                                           help="Run the monitoring mode")
+    addNodeArgument(parserMonitor)
+    parserMonitor.set_defaults(func=monitor)
+
 
 def main():
     argument_parser = argparse.ArgumentParser()
@@ -102,6 +135,7 @@ def main():
     subparsers = argument_parser.add_subparsers()
     addConfigmapParser(subparsers)
     addHttpCommandParser(subparsers)
+    addMonitorParser(subparsers)
 
     args = argument_parser.parse_args()                              
     args.func(args)
