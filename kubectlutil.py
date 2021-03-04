@@ -1,5 +1,6 @@
 import argparse
 import toml
+import subprocess
 from kubernetes import client, config
 
 PREFERRED_PEERS = "PREFERRED_PEERS"
@@ -46,9 +47,20 @@ def configmap(args):
                 cleanPreferredPeers(parsed_toml[PREFERRED_PEERS], args)
                 cleanQuorumSet(parsed_toml[QUORUM_SET])
             print(toml.dumps(parsed_toml))
+
 def httpCommand(args):
-    #TODO
-    return
+    podList = getPodList(args)
+    podName = "not found"
+    for pod in podList.items:
+        podName = pod.metadata.name
+        if args.node in podName:
+            break
+    # TODO: Find out a way to get ingress from the API.
+    template = 'curl {}.stellar-supercluster.kube001.services.stellar-ops.com/{}/core/{}'
+    cmd = template.format(podName[:16], podName, args.command)
+    process = subprocess.Popen(cmd.split())
+    process.communicate()
+
 
 def addNodeArgument(parser):
     parser.add_argument("-n",
@@ -84,6 +96,7 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("-ns",
                                  "--namespace",
+                                 default="hidenori",
                                  help="namespace")
 
     subparsers = argument_parser.add_subparsers()
