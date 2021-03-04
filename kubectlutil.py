@@ -119,13 +119,16 @@ def peers(args):
     content = json.loads(results.stdout)
     ls = content["authenticated_peers"]["inbound"] + content["authenticated_peers"]["outbound"]
     ip2podname = getip2podname(args)
+    listOfPeers = []
     for node in ls:
         ipWithPort = node["address"]
         ip = re.match(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', ipWithPort)[0]
         podname = ip2podname[ip]
         if not args.raw:
             podname = podname[21:]
-        print(podname)
+        listOfPeers.append(podname)
+    listOfPeers.sort()
+    for peer in listOfPeers: print(peer)
     return
 
 def addNodeArgument(parser):
