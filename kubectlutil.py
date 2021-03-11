@@ -75,8 +75,7 @@ def httpCommand(args):
     process = subprocess.Popen(getCurlCommand(podName, args.command).split())
     process.communicate()
 
-def monitor(args):
-    podList = getPodList(args)
+def printPodNamesAndStatuses(podList):
     podNamesPerStatus = dict()
     totalCount = 0
     for pod in podList.items:
@@ -101,6 +100,10 @@ def monitor(args):
                                          ", ".join(podNamesToPrint) +
                                                 ("..." if len(podNameList) > maxNumberToPrint
                                                         else "")))
+
+def monitor(args):
+    podList = getPodList(args)
+    printPodNamesAndStatuses(podList)
 
 def logs(args):
     try:
