@@ -92,13 +92,15 @@ def monitor(args):
         podNameList = podNamesPerStatus[status]
         random.shuffle(podNameList)
         maxNumberToPrint = 5
-        for i in range(min(maxNumberToPrint, len(podNameList))):
-            if i > 0:
-                examplePodNames += ", "
-            examplePodNames += podNameList[i][21:]
-        if len(podNameList) > maxNumberToPrint:
-            examplePodNames += "..."
-        print("{} => {} pods: {}".format(status, len(podNameList), examplePodNames))
+        podNamesToPrint = list(map(lambda longName: longName[21:],
+                                   podNameList[:min(maxNumberToPrint,
+                                                    len(podNameList))]))
+        podNamesToPrint.sort()
+        print("{} => {} pods: {}".format(status,
+                                         len(podNameList),
+                                         ", ".join(podNamesToPrint) +
+                                                ("..." if len(podNameList) > maxNumberToPrint
+                                                        else "")))
 
 def logs(args):
     try:
