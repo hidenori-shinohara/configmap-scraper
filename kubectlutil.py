@@ -11,15 +11,16 @@ from kubernetes import client, config
 PREFERRED_PEERS = "PREFERRED_PEERS"
 QUORUM_SET = "QUORUM_SET"
 
+
 def getCoreV1Api():
     config.load_kube_config()
-
     return client.CoreV1Api()
+
 
 def getPodList(args):
     v1 = getCoreV1Api()
-    a = v1.list_namespaced_config_map(args.namespace)
     return v1.list_namespaced_pod(args.namespace)
+
 
 def getConfigMapList(args):
     v1 = getCoreV1Api()
@@ -33,17 +34,21 @@ def getip2podname(args):
         ip2podname[item.status.pod_ip] = item.metadata.name
     return ip2podname
 
+
 def podname2name(podname, args):
     return podname[21:-(49 + len(args.namespace))]
+
 
 def cleanPreferredPeers(preferredPeers, args):
     for i in range(len(preferredPeers)):
         preferredPeers[i] = podname2name(preferredPeers[i], args)
     preferredPeers.sort()
 
+
 def cleanQuorumSet(quroumSet):
     # TODO
     return
+
 
 def configmap(args):
     configMapList = getConfigMapList(args)
@@ -57,6 +62,7 @@ def configmap(args):
                 result = json.dumps(parsedToml, sort_keys=True, indent=4)
             print(result)
 
+
 def getPodName(args):
     podList = getPodList(args)
     for pod in podList.items:
@@ -65,15 +71,18 @@ def getPodName(args):
             return podName
     return "not found"
 
+
 def getCurlCommand(podName, cmd):
     # TODO: Find out a way to get ingress from the API.
     template = 'curl {}.stellar-supercluster.kube001.services.stellar-ops.com/{}/core/{}'
     return template.format(podName[:16], podName, cmd)
 
+
 def httpCommand(args):
     podName = getPodName(args)
     process = subprocess.Popen(getCurlCommand(podName, args.command).split())
     process.communicate()
+
 
 def printPodNamesAndStatuses(podList):
     podNamesPerStatus = dict()
@@ -98,12 +107,14 @@ def printPodNamesAndStatuses(podList):
         print("{} => {} pods: {}".format(status,
                                          len(podNameList),
                                          ", ".join(podNamesToPrint) +
-                                                ("..." if len(podNameList) > maxNumberToPrint
-                                                        else "")))
+                                         ("..." if len(podNameList) > maxNumberToPrint
+                                          else "")))
+
 
 def monitor(args):
     podList = getPodList(args)
     printPodNamesAndStatuses(podList)
+
 
 def logs(args):
     try:
@@ -116,13 +127,15 @@ def logs(args):
         print('Found exception in reading the logs')
         print(e)
 
+
 def peers(args):
     podName = getPodName(args)
     cmd = getCurlCommand(podName, "peers")
     print("Running {}".format(cmd))
     results = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     content = json.loads(results.stdout)
-    ls = content["authenticated_peers"]["inbound"] + content["authenticated_peers"]["outbound"]
+    ls = content["authenticated_peers"]["inbound"] + \
+        content["authenticated_peers"]["outbound"]
     ip2podname = getip2podname(args)
     listOfPeers = []
     for node in ls:
@@ -133,58 +146,63 @@ def peers(args):
             podname = podname[21:]
         listOfPeers.append(podname)
     listOfPeers.sort()
-    for peer in listOfPeers: print(peer)
+    for peer in listOfPeers:
+        print(peer)
     return
+
 
 def addNodeArgument(parser):
     parser.add_argument("-n",
-          "--node",
-          default="www-stellar-org-0",
-          help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
+                        "--node",
+                        default="www-stellar-org-0",
+                        help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
+
 
 def addRaw(parser):
     parser.add_argument("-r",
-          "--raw",
-          action='store_true',
-          help="Optional flag to output with as little modification as possible")
+                        "--raw",
+                        action='store_true',
+                        help="Optional flag to output with as little modification as possible")
+
 
 def addConfigmapParser(subparsers):
     parserConfigMap = subparsers.add_parser("configmap",
-                                           help="Get the configmap")
+                                            help="Get the configmap")
     addNodeArgument(parserConfigMap)
     addRaw(parserConfigMap)
-
     parserConfigMap.set_defaults(func=configmap)
+
 
 def addHttpCommandParser(subparsers):
     parserHttpCommand = subparsers.add_parser("http",
-                                           help="Run http command")
+                                              help="Run http command")
     addNodeArgument(parserHttpCommand)
-
     parserHttpCommand.add_argument("-c",
-          "--command",
-          default="info",
-          help="HTTP command to run. If not set, it runs info")
-
+                                   "--command",
+                                   default="info",
+                                   help="HTTP command to run. If not set, it runs info")
     parserHttpCommand.set_defaults(func=httpCommand)
+
 
 def addMonitorParser(subparsers):
     parserMonitor = subparsers.add_parser("monitor",
-                                           help="Run the monitoring mode")
+                                          help="Run the monitoring mode")
     addNodeArgument(parserMonitor)
     parserMonitor.set_defaults(func=monitor)
+
 
 def addLogsParser(subparsers):
     parserLogs = subparsers.add_parser("logs", help="Get the logs")
     addNodeArgument(parserLogs)
-
     parserLogs.set_defaults(func=logs)
+
 
 def addPeersParser(subparsers):
     parserPeers = subparsers.add_parser("peers", help="List all the peers")
     addNodeArgument(parserPeers)
     addRaw(parserPeers)
     parserPeers.set_defaults(func=peers)
+
 
 def main():
     argument_parser = argparse.ArgumentParser()
@@ -200,7 +218,7 @@ def main():
     addLogsParser(subparsers)
     addPeersParser(subparsers)
 
-    args = argument_parser.parse_args()                              
+    args = argument_parser.parse_args()
     args.func(args)
 
 
