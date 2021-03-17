@@ -75,7 +75,8 @@ def getPodName(args):
 
 def getCurlCommand(podName, cmd):
     # TODO: Find out a way to get ingress from the API.
-    template = 'curl {}.stellar-supercluster.kube001.services.stellar-ops.com/{}/core/{}'
+    template = 'curl {}.stellar-supercluster.kube001.' \
+               'services.stellar-ops.com/{}/core/{}'
     return template.format(podName[:16], podName, cmd)
 
 
@@ -94,11 +95,11 @@ def printPodNamesAndStatuses(podNamesPerStatus):
                                    podNameList[:min(maxNumberToPrint,
                                                     len(podNameList))]))
         podNamesToPrint.sort()
+        dotsOrNoDots = "..." if len(podNameList) > maxNumberToPrint else ""
         print("{} => {} pods: {}".format(status,
                                          len(podNameList),
                                          ", ".join(podNamesToPrint) +
-                                         ("..." if len(podNameList) > maxNumberToPrint
-                                          else "")))
+                                         dotsOrNoDots))
 
 
 def printPodStatuses(podList):
@@ -133,8 +134,10 @@ def printSCPStatuses(podList):
     processes = []
     for pod in podList.items:
         podName = pod.metadata.name
-        processes.append(multiprocessing.Process(target=getSCPStatus,
-                                                 args=(podName, podNamesPerStatus)))
+        process = multiprocessing.Process(target=getSCPStatus,
+                                          args=(podName,
+                                                podNamesPerStatus))
+        processes.append(process)
     for process in processes:
         process.start()
     for process in processes:
@@ -194,14 +197,16 @@ def addNodeArgument(parser):
     parser.add_argument("-n",
                         "--node",
                         default="www-stellar-org-0",
-                        help="Optional flag to specify the node. If none, www-stellar-org-0 will be used.")
+                        help="Optional flag to specify the node."
+                             "If none, www-stellar-org-0 will be used.")
 
 
 def addRaw(parser):
     parser.add_argument("-r",
                         "--raw",
                         action='store_true',
-                        help="Optional flag to output with as little modification as possible")
+                        help="Optional flag to output"
+                             "with as little modification as possible")
 
 
 def addConfigmapParser(subparsers):
@@ -219,7 +224,8 @@ def addHttpCommandParser(subparsers):
     parserHttpCommand.add_argument("-c",
                                    "--command",
                                    default="info",
-                                   help="HTTP command to run. If not set, it runs info")
+                                   help="HTTP command to run."
+                                        "If not set, it runs info")
     parserHttpCommand.set_defaults(func=httpCommand)
 
 
