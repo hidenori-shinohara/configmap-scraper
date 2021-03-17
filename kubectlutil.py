@@ -90,7 +90,7 @@ def printPodNamesAndStatuses(podNamesPerStatus):
     maxLength = 0
     for status in podNamesPerStatus:
         maxLength = max(maxLength, len(status))
-    for status in podNamesPerStatus:
+    for status in sorted(podNamesPerStatus):
         podNameList = podNamesPerStatus[status]
         random.shuffle(podNameList)
         maxNumberToPrint = 5
@@ -153,6 +153,54 @@ def printSCPStatuses(podList):
     printPodNamesAndStatuses(podNamesPerLedger)
 
 
+def printPeerConnectionStatuses(podList, args):
+    configMapList = getConfigMapList(args)
+    targetConnectionCount = dict()
+    for pod in podList.items:
+        podName = pod.metadata.name
+        for configMap in configMapList.items:
+            if podName in configMap.metadata.name:
+                parsedToml = toml.loads(configMap.data['stellar-core.cfg'])
+                targetConnectionCount[configMap.metadata.name] = len(parsedToml[PREFERRED_PEERS])
+
+    manager = multiprocessing.Manager()
+    currentConnectionCount = manager.dict()
+
+    def getConnectionCount(podName):
+        try:
+            cmd = getCurlCommand(podName, "peers")
+            results = json.loads(subprocess.run(cmd.split(),
+                                                capture_output=True).stdout)
+            n = len(results["authenticated_peers"]["inbound"] +
+                    results["authenticated_peers"]["outbound"])
+        except Exception as e:
+            n = 0
+        currentConnectionCount[podName] = n
+
+    processes = []
+    for pod in podList.items:
+        podName = pod.metadata.name
+        process = multiprocessing.Process(target=getConnectionCount,
+                                          args=(podName,))
+        processes.append(process)
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
+    percentageAndPodNames = dict()
+    for name in currentConnectionCount:
+        targetCount = 1000000
+        for podName in targetConnectionCount:
+            if name in podName:
+                targetCount = targetConnectionCount[podName]
+        currentCount = currentConnectionCount[name]
+        percentage = "{:>3}%".format(((10 * currentCount) // targetCount) * 10)
+        if percentage not in percentageAndPodNames:
+            percentageAndPodNames[percentage] = []
+        percentageAndPodNames[percentage].append(name)
+    printPodNamesAndStatuses(percentageAndPodNames)
+
+
 def monitor(args):
     podList = getPodList(args)
     print("{} pods total".format(len(podList.items)))
@@ -164,6 +212,10 @@ def monitor(args):
     print("#SCP Status#")
     print()
     printSCPStatuses(podList)
+    print()
+    print("#Peer Connection Status#")
+    print()
+    printPeerConnectionStatuses(podList, args)
 
 
 def logs(args):
