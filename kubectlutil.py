@@ -111,9 +111,40 @@ def printPodNamesAndStatuses(podList):
                                           else "")))
 
 
+def printLoadGenStatuses(podList):
+    podNamesPerStatus = dict()
+    totalCount = 0
+    for pod in podList.items:
+        podName = pod.metadata.name
+        try:
+            cmd = getCurlCommand(podName, "info")
+            output = subprocess.run(cmd.split(), capture_output=True).stdout
+            status = json.loads(output)["info"]["state"]
+            if status not in podNamesPerStatus:
+                podNamesPerStatus[status] = []
+            podNamesPerStatus[status].append(podName)
+        except Exception as e:
+            print("Failed to obtain loadgen status: {}".format(e))
+            return
+    for status in podNamesPerStatus:
+        podNameList = podNamesPerStatus[status]
+        random.shuffle(podNameList)
+        maxNumberToPrint = 5
+        podNamesToPrint = list(map(lambda longName: longName[21:],
+                                   podNameList[:min(maxNumberToPrint,
+                                                    len(podNameList))]))
+        podNamesToPrint.sort()
+        print("{} => {} pods: {}".format(status,
+                                         len(podNameList),
+                                         ", ".join(podNamesToPrint) +
+                                         ("..." if len(podNameList) > maxNumberToPrint
+                                          else "")))
+
+
 def monitor(args):
     podList = getPodList(args)
     printPodNamesAndStatuses(podList)
+    printLoadGenStatuses(podList)
 
 
 def logs(args):
