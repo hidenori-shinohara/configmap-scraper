@@ -171,8 +171,8 @@ def printPeerConnectionStatuses(podList, args):
             cmd = getCurlCommand(podName, "peers")
             results = json.loads(subprocess.run(cmd.split(),
                                                 capture_output=True).stdout)
-            n = len(results["authenticated_peers"]["inbound"] +
-                    results["authenticated_peers"]["outbound"])
+            n = len((results["authenticated_peers"]["inbound"] or []) +
+                    (results["authenticated_peers"]["outbound"] or []))
         except Exception as e:
             n = 0
         currentConnectionCount[podName] = n
@@ -236,8 +236,8 @@ def peers(args):
     print("Running {}".format(cmd))
     results = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     content = json.loads(results.stdout)
-    ls = content["authenticated_peers"]["inbound"] + \
-        content["authenticated_peers"]["outbound"]
+    ls = (content["authenticated_peers"]["inbound"] or []) + \
+         (content["authenticated_peers"]["outbound"] or [])
     ip2podname = getip2podname(args)
     listOfPeers = []
     for node in ls:
