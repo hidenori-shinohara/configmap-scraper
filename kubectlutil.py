@@ -118,31 +118,37 @@ def printPodStatuses(podList):
 
 def printSCPStatuses(podList):
     manager = multiprocessing.Manager()
-    podNamesPerStatus = manager.dict()
+    podNamesPerSCPStatus = manager.dict()
+    podNamesPerLedger = manager.dict()
 
-    def getSCPStatus(podName, podNamesPerStatus):
+    def getSCPStatus(podName):
         try:
             cmd = getCurlCommand(podName, "info")
             output = subprocess.run(cmd.split(), capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
+            ledger = "ledger {}".format(json.loads(output)["info"]["ledger"]["num"])
         except Exception as e:
-            status = "Unknown: {}".format(e)
-        if status not in podNamesPerStatus:
-            podNamesPerStatus[status] = manager.list()
-        podNamesPerStatus[status].append(podName)
+            status = ledger = "Unknown: {}".format(e)
+        if status not in podNamesPerSCPStatus:
+            podNamesPerSCPStatus[status] = manager.list()
+        if ledger not in podNamesPerLedger:
+            podNamesPerLedger[ledger] = manager.list()
+        podNamesPerSCPStatus[status].append(podName)
+        podNamesPerLedger[ledger].append(podName)
 
     processes = []
     for pod in podList.items:
         podName = pod.metadata.name
         process = multiprocessing.Process(target=getSCPStatus,
-                                          args=(podName,
-                                                podNamesPerStatus))
+                                          args=(podName,))
         processes.append(process)
     for process in processes:
         process.start()
     for process in processes:
         process.join()
-    printPodNamesAndStatuses(podNamesPerStatus)
+    printPodNamesAndStatuses(podNamesPerSCPStatus)
+    print()
+    printPodNamesAndStatuses(podNamesPerLedger)
 
 
 def monitor(args):
