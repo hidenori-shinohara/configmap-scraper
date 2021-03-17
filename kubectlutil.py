@@ -126,7 +126,9 @@ def printSCPStatuses(podList):
             cmd = getCurlCommand(podName, "info")
             output = subprocess.run(cmd.split(), capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
-            ledger = "ledger {}".format(json.loads(output)["info"]["ledger"]["num"])
+            ledgerInfo = json.loads(output)["info"]["ledger"]
+            ledger = "Ledger {}({})".format(ledgerInfo["num"],
+                                            ledgerInfo["hash"][:5])
         except Exception as e:
             status = ledger = "Unknown: {}".format(e)
         if status not in podNamesPerSCPStatus:
