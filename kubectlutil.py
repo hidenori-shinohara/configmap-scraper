@@ -127,7 +127,7 @@ def printSCPStatuses(podList):
             output = subprocess.run(cmd.split(), capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
             ledgerInfo = json.loads(output)["info"]["ledger"]
-            ledger = "Ledger {}({})".format(ledgerInfo["num"],
+            ledger = "Ledger {:>3}({})".format(ledgerInfo["num"],
                                             ledgerInfo["hash"][:5])
         except Exception as e:
             status = ledger = "Unknown: {}".format(e)
