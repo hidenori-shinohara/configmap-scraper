@@ -5,6 +5,7 @@ import toml
 import ipaddress
 import subprocess
 import json
+import multiprocessing
 from kubernetes.client.rest import ApiException
 from kubernetes import client, config
 
@@ -111,21 +112,31 @@ def printPodNamesAndStatuses(podList):
                                           else "")))
 
 
+
 def printLoadGenStatuses(podList):
-    podNamesPerStatus = dict()
-    totalCount = 0
-    for pod in podList.items:
-        podName = pod.metadata.name
+    manager = multiprocessing.Manager()
+    podNamesPerStatus = manager.dict()
+
+    def getLoadGenStatus(podName, podNamesPerStatus):
         try:
             cmd = getCurlCommand(podName, "info")
             output = subprocess.run(cmd.split(), capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
-            if status not in podNamesPerStatus:
-                podNamesPerStatus[status] = []
-            podNamesPerStatus[status].append(podName)
         except Exception as e:
-            print("Failed to obtain loadgen status: {}".format(e))
-            return
+            status = "Unknown: {}".format(e)
+        if status not in podNamesPerStatus:
+            podNamesPerStatus[status] = manager.list()
+        podNamesPerStatus[status].append(podName)
+
+    processes = []
+    for pod in podList.items:
+        podName = pod.metadata.name
+        processes.append(multiprocessing.Process(target=getLoadGenStatus,
+                                                 args=(podName, podNamesPerStatus)))
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
     for status in podNamesPerStatus:
         podNameList = podNamesPerStatus[status]
         random.shuffle(podNameList)
