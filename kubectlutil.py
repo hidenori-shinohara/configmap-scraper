@@ -85,19 +85,8 @@ def httpCommand(args):
     process.communicate()
 
 
-def printPodNamesAndStatuses(podList):
-    podNamesPerStatus = dict()
-    totalCount = 0
-    for pod in podList.items:
-        totalCount += 1
-        status = pod.status.phase
-        name = pod.metadata.name
-        if status not in podNamesPerStatus:
-            podNamesPerStatus[status] = []
-        podNamesPerStatus[status].append(name)
-    print("{} pods total".format(totalCount))
+def printPodNamesAndStatuses(podNamesPerStatus):
     for status in podNamesPerStatus:
-        examplePodNames = ""
         podNameList = podNamesPerStatus[status]
         random.shuffle(podNameList)
         maxNumberToPrint = 5
@@ -112,12 +101,25 @@ def printPodNamesAndStatuses(podList):
                                           else "")))
 
 
+def printPodStatuses(podList):
+    podNamesPerStatus = dict()
+    totalCount = 0
+    for pod in podList.items:
+        totalCount += 1
+        status = pod.status.phase
+        name = pod.metadata.name
+        if status not in podNamesPerStatus:
+            podNamesPerStatus[status] = []
+        podNamesPerStatus[status].append(name)
+    print("{} pods total".format(totalCount))
+    printPodNamesAndStatuses(podNamesPerStatus)
 
-def printLoadGenStatuses(podList):
+
+def printSCPStatuses(podList):
     manager = multiprocessing.Manager()
     podNamesPerStatus = manager.dict()
 
-    def getLoadGenStatus(podName, podNamesPerStatus):
+    def getSCPStatus(podName, podNamesPerStatus):
         try:
             cmd = getCurlCommand(podName, "info")
             output = subprocess.run(cmd.split(), capture_output=True).stdout
@@ -131,31 +133,26 @@ def printLoadGenStatuses(podList):
     processes = []
     for pod in podList.items:
         podName = pod.metadata.name
-        processes.append(multiprocessing.Process(target=getLoadGenStatus,
+        processes.append(multiprocessing.Process(target=getSCPStatus,
                                                  args=(podName, podNamesPerStatus)))
     for process in processes:
         process.start()
     for process in processes:
         process.join()
-    for status in podNamesPerStatus:
-        podNameList = podNamesPerStatus[status]
-        random.shuffle(podNameList)
-        maxNumberToPrint = 5
-        podNamesToPrint = list(map(lambda longName: longName[21:],
-                                   podNameList[:min(maxNumberToPrint,
-                                                    len(podNameList))]))
-        podNamesToPrint.sort()
-        print("{} => {} pods: {}".format(status,
-                                         len(podNameList),
-                                         ", ".join(podNamesToPrint) +
-                                         ("..." if len(podNameList) > maxNumberToPrint
-                                          else "")))
+    printPodNamesAndStatuses(podNamesPerStatus)
 
 
 def monitor(args):
     podList = getPodList(args)
-    printPodNamesAndStatuses(podList)
-    printLoadGenStatuses(podList)
+    print("{} pods in total".format(len(podList.items)))
+    print()
+    print("#Pod Status#")
+    print()
+    printPodStatuses(podList)
+    print()
+    print("#SCP Status#")
+    print()
+    printSCPStatuses(podList)
 
 
 def logs(args):
