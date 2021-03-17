@@ -87,6 +87,9 @@ def httpCommand(args):
 
 
 def printPodNamesAndStatuses(podNamesPerStatus):
+    maxLength = 0
+    for status in podNamesPerStatus:
+        maxLength = max(maxLength, len(status))
     for status in podNamesPerStatus:
         podNameList = podNamesPerStatus[status]
         random.shuffle(podNameList)
@@ -96,23 +99,20 @@ def printPodNamesAndStatuses(podNamesPerStatus):
                                                     len(podNameList))]))
         podNamesToPrint.sort()
         dotsOrNoDots = "..." if len(podNameList) > maxNumberToPrint else ""
-        print("{} => {} pods: {}".format(status,
-                                         len(podNameList),
-                                         ", ".join(podNamesToPrint) +
-                                         dotsOrNoDots))
+        template = "{:<" + str(maxLength) + "} => {:>3} pods: {}"
+        print(template.format(status,
+                              len(podNameList),
+                              ", ".join(podNamesToPrint) +
+                              dotsOrNoDots))
 
 
 def printPodStatuses(podList):
     podNamesPerStatus = dict()
-    totalCount = 0
     for pod in podList.items:
-        totalCount += 1
         status = pod.status.phase
-        name = pod.metadata.name
         if status not in podNamesPerStatus:
             podNamesPerStatus[status] = []
-        podNamesPerStatus[status].append(name)
-    print("{} pods total".format(totalCount))
+        podNamesPerStatus[status].append(pod.metadata.name)
     printPodNamesAndStatuses(podNamesPerStatus)
 
 
@@ -155,7 +155,7 @@ def printSCPStatuses(podList):
 
 def monitor(args):
     podList = getPodList(args)
-    print("{} pods in total".format(len(podList.items)))
+    print("{} pods total".format(len(podList.items)))
     print()
     print("#Pod Status#")
     print()
