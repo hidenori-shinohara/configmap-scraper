@@ -118,10 +118,11 @@ def printPodStatuses(podList):
         now = datetime.datetime.now().astimezone(pod.status.start_time.tzinfo)
         durations.append(now - pod.status.start_time)
     durations.sort()
-    print("youngest = {}".format(durations[0]))
-    print("median   = {}".format(durations[len(durations) // 2]))
-    print("oldest   = {}".format(durations[-1]))
-    print()
+    if len(durations) > 0:
+        print("youngest = {}".format(durations[0]))
+        print("median   = {}".format(durations[len(durations) // 2]))
+        print("oldest   = {}".format(durations[-1]))
+        print()
     printPodNamesAndStatuses(podNamesPerStatus)
 
 
