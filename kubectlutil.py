@@ -4,6 +4,7 @@ import re
 import toml
 import ipaddress
 import subprocess
+import datetime
 import json
 import multiprocessing
 from kubernetes.client.rest import ApiException
@@ -108,11 +109,19 @@ def printPodNamesAndStatuses(podNamesPerStatus):
 
 def printPodStatuses(podList):
     podNamesPerStatus = dict()
+    durations = []
     for pod in podList.items:
         status = pod.status.phase
         if status not in podNamesPerStatus:
             podNamesPerStatus[status] = []
         podNamesPerStatus[status].append(pod.metadata.name)
+        now = datetime.datetime.now().astimezone(pod.status.start_time.tzinfo)
+        durations.append(now - pod.status.start_time)
+    durations.sort()
+    print("youngest = {}".format(durations[0]))
+    print("median   = {}".format(durations[len(durations) // 2]))
+    print("oldest   = {}".format(durations[-1]))
+    print()
     printPodNamesAndStatuses(podNamesPerStatus)
 
 
