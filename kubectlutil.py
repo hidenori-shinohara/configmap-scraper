@@ -106,6 +106,12 @@ def printPodNamesAndStatuses(podNamesPerStatus):
                               ", ".join(podNamesToPrint) +
                               dotsOrNoDots))
 
+def formatTimeDiff(td):
+    # The default format is HH:MM:SS.SSSS
+    # This code turns that into HH:MM:SS since
+    # we don't need to be that precise.
+    return str(td).split('.', 1)[0]
+
 
 def printPodStatuses(podList):
     podNamesPerStatus = dict()
@@ -119,9 +125,9 @@ def printPodStatuses(podList):
         durations.append(now - pod.status.start_time)
     durations.sort()
     if len(durations) > 0:
-        print("youngest = {}".format(durations[0]))
-        print("median   = {}".format(durations[len(durations) // 2]))
-        print("oldest   = {}".format(durations[-1]))
+        print("youngest = {}".format(formatTimeDiff(durations[0])))
+        print("median   = {}".format(formatTimeDiff(durations[len(durations) // 2])))
+        print("oldest   = {}".format(formatTimeDiff(durations[-1])))
         print()
     printPodNamesAndStatuses(podNamesPerStatus)
 
