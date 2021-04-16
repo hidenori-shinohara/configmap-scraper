@@ -15,13 +15,13 @@ PREFERRED_PEERS = "PREFERRED_PEERS"
 QUORUM_SET = "QUORUM_SET"
 
 
-def getCoreV1Api():
-    config.load_kube_config(config_file="/etc/rancher/k3s/k3s.yaml")
+def getCoreV1Api(args):
+    config.load_kube_config(config_file=args.kubeconfig)
     return client.CoreV1Api()
 
 
 def getPodList(args):
-    v1 = getCoreV1Api()
+    v1 = getCoreV1Api(args)
     api_instance = kubernetes.client.ExtensionsV1beta1Api()
     ingress = api_instance.list_namespaced_ingress(args.namespace)
     print(ingress)
@@ -29,7 +29,7 @@ def getPodList(args):
 
 
 def getConfigMapList(args):
-    v1 = getCoreV1Api()
+    v1 = getCoreV1Api(args)
     return v1.list_namespaced_config_map(args.namespace)
 
 
@@ -336,6 +336,10 @@ def main():
                                  "--namespace",
                                  default="",
                                  help="namespace")
+    argument_parser.add_argument("-kc",
+                                 "--kubeconfig",
+                                 default="~/.kube/config",
+                                 help="Kubernetes config file")
 
     subparsers = argument_parser.add_subparsers()
     addConfigmapParser(subparsers)
