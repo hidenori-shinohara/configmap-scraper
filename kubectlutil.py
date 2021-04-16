@@ -9,18 +9,22 @@ import json
 import multiprocessing
 from kubernetes.client.rest import ApiException
 from kubernetes import client, config
+import kubernetes.client
 
 PREFERRED_PEERS = "PREFERRED_PEERS"
 QUORUM_SET = "QUORUM_SET"
 
 
 def getCoreV1Api():
-    config.load_kube_config()
+    config.load_kube_config(config_file="/etc/rancher/k3s/k3s.yaml")
     return client.CoreV1Api()
 
 
 def getPodList(args):
     v1 = getCoreV1Api()
+    api_instance = kubernetes.client.ExtensionsV1beta1Api()
+    ingress = api_instance.list_namespaced_ingress(args.namespace)
+    print(ingress)
     return v1.list_namespaced_pod(args.namespace)
 
 
@@ -218,6 +222,7 @@ def printPeerConnectionStatuses(podList, args):
 
 
 def monitor(args):
+
     podList = getPodList(args)
     print("{} pods total".format(len(podList.items)))
     print()
@@ -329,7 +334,7 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("-ns",
                                  "--namespace",
-                                 default="hidenori",
+                                 default="",
                                  help="namespace")
 
     subparsers = argument_parser.add_subparsers()
