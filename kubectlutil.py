@@ -22,10 +22,13 @@ def getCoreV1Api(args):
 
 def getPodList(args):
     v1 = getCoreV1Api(args)
-    api_instance = kubernetes.client.ExtensionsV1beta1Api()
-    ingress = api_instance.list_namespaced_ingress(args.namespace)
-    print(ingress)
     return v1.list_namespaced_pod(args.namespace)
+
+def getIngress(args):
+    v1 = getCoreV1Api(args)
+    api_instance = kubernetes.client.ExtensionsV1beta1Api()
+    return api_instance.list_namespaced_ingress(args.namespace)
+
 
 
 def getConfigMapList(args):
@@ -78,16 +81,16 @@ def getPodName(args):
     return "not found"
 
 
-def getCurlCommand(podName, cmd):
-    # TODO: Find out a way to get ingress from the API.
-    template = 'curl {}.stellar-supercluster.kube001.' \
-               'services.stellar-ops.com/{}/core/{}'
-    return template.format(podName[:16], podName, cmd)
+def getCurlCommand(args, podName, cmd):
+    # TODO: I don't think I need to call this multiple times
+    host = getIngress(args).items[0].spec.rules[0].host
+    template = 'curl {}/{}/core/{}'
+    return template.format(host, podName, cmd)
 
 
 def httpCommand(args):
     podName = getPodName(args)
-    process = subprocess.Popen(getCurlCommand(podName, args.command).split())
+    process = subprocess.Popen(getCurlCommand(args, podName, args.command).split())
     process.communicate()
 
 
@@ -117,7 +120,7 @@ def formatTimeDiff(td):
     return str(td).split('.', 1)[0]
 
 
-def printPodStatuses(podList):
+def printPodStatuses(args, podList):
     podNamesPerStatus = dict()
     durations = []
     for pod in podList.items:
@@ -136,14 +139,14 @@ def printPodStatuses(podList):
     printPodNamesAndStatuses(podNamesPerStatus)
 
 
-def printSCPStatuses(podList):
+def printSCPStatuses(args, podList):
     manager = multiprocessing.Manager()
     podNamesPerSCPStatus = manager.dict()
     podNamesPerLedger = manager.dict()
 
     def getSCPStatus(podName):
         try:
-            cmd = getCurlCommand(podName, "info")
+            cmd = getCurlCommand(args, podName, "info")
             output = subprocess.run(cmd.split(), capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
             ledgerInfo = json.loads(output)["info"]["ledger"]
@@ -173,7 +176,7 @@ def printSCPStatuses(podList):
     printPodNamesAndStatuses(podNamesPerLedger)
 
 
-def printPeerConnectionStatuses(podList, args):
+def printPeerConnectionStatuses(args, podList):
     configMapList = getConfigMapList(args)
     targetConnectionCount = dict()
     for pod in podList.items:
@@ -228,15 +231,15 @@ def monitor(args):
     print()
     print("#Pod Status#")
     print()
-    printPodStatuses(podList)
+    printPodStatuses(args, podList)
     print()
     print("#SCP Status#")
     print()
-    printSCPStatuses(podList)
+    printSCPStatuses(args, podList)
     print()
     print("#Peer Connection Status#")
     print()
-    printPeerConnectionStatuses(podList, args)
+    printPeerConnectionStatuses(args, podList)
 
 
 def logs(args):
