@@ -81,16 +81,20 @@ def getPodName(args):
     return "not found"
 
 
-def getCurlCommand(args, podName, cmd):
+def getHostName(args):
+    return getIngress(args).items[0].spec.rules[0].host
+
+
+def getCurlCommand(host, podName, cmd):
     # TODO: I don't think I need to call this multiple times
-    host = getIngress(args).items[0].spec.rules[0].host
     template = 'curl {}/{}/core/{}'
     return template.format(host, podName, cmd)
 
 
 def httpCommand(args):
     podName = getPodName(args)
-    process = subprocess.Popen(getCurlCommand(args, podName, args.command).split())
+    host = getHostName(args)
+    process = subprocess.Popen(getCurlCommand(host, podName, args.command).split())
     process.communicate()
 
 
@@ -143,10 +147,11 @@ def printSCPStatuses(args, podList):
     manager = multiprocessing.Manager()
     podNamesPerSCPStatus = manager.dict()
     podNamesPerLedger = manager.dict()
+    host = getHostName(args)
 
     def getSCPStatus(podName):
         try:
-            cmd = getCurlCommand(args, podName, "info")
+            cmd = getCurlCommand(host, podName, "info")
             output = subprocess.run(cmd.split(), capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
             ledgerInfo = json.loads(output)["info"]["ledger"]
@@ -188,10 +193,11 @@ def printPeerConnectionStatuses(args, podList):
 
     manager = multiprocessing.Manager()
     currentConnectionCount = manager.dict()
+    host = getHostName(args)
 
     def getConnectionCount(podName):
         try:
-            cmd = getCurlCommand(podName, "peers")
+            cmd = getCurlCommand(host, podName, "peers")
             results = json.loads(subprocess.run(cmd.split(),
                                                 capture_output=True).stdout)
             n = len((results["authenticated_peers"]["inbound"] or []) +
