@@ -202,11 +202,11 @@ def printPeerConnectionStatuses(args, podList):
     def getConnectionCount(podName):
         try:
             cmd = getCurlCommand(ingress, podName, "peers")
-            results = json.loads(subprocess.run(cmd.split(),
-                                                capture_output=True).stdout)
+            results = json.loads(subprocess.run(cmd, capture_output=True).stdout)
             n = len((results["authenticated_peers"]["inbound"] or []) +
                     (results["authenticated_peers"]["outbound"] or []))
         except Exception as e:
+            print(e)
             n = 0
         currentConnectionCount[podName] = n
 
