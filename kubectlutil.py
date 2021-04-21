@@ -82,18 +82,22 @@ def getPodName(args):
 
 
 def getHostName(args):
+    ip = getIngress(args).items[0].status.load_balancer.ingress[0].ip
     return getIngress(args).items[0].spec.rules[0].host
 
 
 def getCurlCommand(host, podName, cmd):
     # TODO: I don't think I need to call this multiple times
     template = 'curl {}/{}/core/{}'
-    return template.format(host, podName, cmd)
+    ret = template.format(host, podName, cmd)
+    print(ret)
+    return ret
 
 
 def httpCommand(args):
     podName = getPodName(args)
     host = getHostName(args)
+    print(host)
     process = subprocess.Popen(getCurlCommand(host, podName, args.command).split())
     process.communicate()
 
@@ -343,11 +347,9 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("-ns",
                                  "--namespace",
-                                 default="",
                                  help="namespace")
     argument_parser.add_argument("-kc",
                                  "--kubeconfig",
-                                 default="~/.kube/config",
                                  help="Kubernetes config file")
 
     subparsers = argument_parser.add_subparsers()
