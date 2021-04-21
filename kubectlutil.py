@@ -1,5 +1,6 @@
 import argparse
 import random
+import shlex
 import re
 import toml
 import ipaddress
@@ -81,24 +82,23 @@ def getPodName(args):
     return "not found"
 
 
-def getHostName(args):
-    ip = getIngress(args).items[0].status.load_balancer.ingress[0].ip
-    return getIngress(args).items[0].spec.rules[0].host
-
-
-def getCurlCommand(host, podName, cmd):
-    # TODO: I don't think I need to call this multiple times
-    template = 'curl {}/{}/core/{}'
-    ret = template.format(host, podName, cmd)
-    print(ret)
-    return ret
+def getCurlCommand(ingress, podName, cmd):
+    host = ingress.items[0].spec.rules[0].host
+    ret = ''
+    if 'local' in host:
+        ip = ingress.items[0].status.load_balancer.ingress[0].ip
+        template = 'curl -H "Host: {}" "http://{}/{}/core/{}"'
+        ret = template.format(host, ip, podName, cmd)
+    else:
+        template = 'curl {}/{}/core/{}'
+        ret = template.format(host, podName, cmd)
+    return shlex.split(ret)
 
 
 def httpCommand(args):
     podName = getPodName(args)
-    host = getHostName(args)
-    print(host)
-    process = subprocess.Popen(getCurlCommand(host, podName, args.command).split())
+    ingress = getIngress(args)
+    process = subprocess.Popen(getCurlCommand(ingress, podName, args.command))
     process.communicate()
 
 
@@ -151,12 +151,12 @@ def printSCPStatuses(args, podList):
     manager = multiprocessing.Manager()
     podNamesPerSCPStatus = manager.dict()
     podNamesPerLedger = manager.dict()
-    host = getHostName(args)
+    ingress = getIngress(args)
 
     def getSCPStatus(podName):
         try:
-            cmd = getCurlCommand(host, podName, "info")
-            output = subprocess.run(cmd.split(), capture_output=True).stdout
+            cmd = getCurlCommand(ingress, podName, "info")
+            output = subprocess.run(cmd, capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
             ledgerInfo = json.loads(output)["info"]["ledger"]
             ledger = "Ledger {:>3}({})".format(ledgerInfo["num"],
@@ -197,11 +197,11 @@ def printPeerConnectionStatuses(args, podList):
 
     manager = multiprocessing.Manager()
     currentConnectionCount = manager.dict()
-    host = getHostName(args)
+    ingress = getIngress(args)
 
     def getConnectionCount(podName):
         try:
-            cmd = getCurlCommand(host, podName, "peers")
+            cmd = getCurlCommand(ingress, podName, "peers")
             results = json.loads(subprocess.run(cmd.split(),
                                                 capture_output=True).stdout)
             n = len((results["authenticated_peers"]["inbound"] or []) +
