@@ -254,7 +254,7 @@ def monitor(args):
 
 def logs(args):
     try:
-        v1 = getCoreV1Api()
+        v1 = getCoreV1Api(args)
         apiResponse = v1.read_namespaced_pod_log(name=getPodName(args),
                                                  namespace=args.namespace,
                                                  container="stellar-core-run")
