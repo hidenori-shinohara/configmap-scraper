@@ -25,11 +25,11 @@ def getPodList(args):
     v1 = getCoreV1Api(args)
     return v1.list_namespaced_pod(args.namespace)
 
+
 def getIngress(args):
     v1 = getCoreV1Api(args)
     api_instance = kubernetes.client.ExtensionsV1beta1Api()
     return api_instance.list_namespaced_ingress(args.namespace)
-
 
 
 def getConfigMapList(args):
@@ -121,6 +121,7 @@ def printPodNamesAndStatuses(podNamesPerStatus):
                               ", ".join(podNamesToPrint) +
                               dotsOrNoDots))
 
+
 def formatTimeDiff(td):
     # The default format is HH:MM:SS.SSSS
     # This code turns that into HH:MM:SS since
@@ -141,7 +142,8 @@ def printPodStatuses(args, podList):
     durations.sort()
     if len(durations) > 0:
         print("youngest = {}".format(formatTimeDiff(durations[0])))
-        print("median   = {}".format(formatTimeDiff(durations[len(durations) // 2])))
+        print("median   = {}".format(
+            formatTimeDiff(durations[len(durations) // 2])))
         print("oldest   = {}".format(formatTimeDiff(durations[-1])))
         print()
     printPodNamesAndStatuses(podNamesPerStatus)
@@ -160,7 +162,7 @@ def printSCPStatuses(args, podList):
             status = json.loads(output)["info"]["state"]
             ledgerInfo = json.loads(output)["info"]["ledger"]
             ledger = "Ledger {:>3}({})".format(ledgerInfo["num"],
-                                            ledgerInfo["hash"][:5])
+                                               ledgerInfo["hash"][:5])
         except Exception as e:
             status = ledger = "Unknown: {}".format(e)
         if status not in podNamesPerSCPStatus:
@@ -193,7 +195,8 @@ def printPeerConnectionStatuses(args, podList):
         for configMap in configMapList.items:
             if podName in configMap.metadata.name:
                 parsedToml = toml.loads(configMap.data['stellar-core.cfg'])
-                targetConnectionCount[configMap.metadata.name] = len(parsedToml[PREFERRED_PEERS])
+                targetConnectionCount[configMap.metadata.name] = len(
+                    parsedToml[PREFERRED_PEERS])
 
     manager = multiprocessing.Manager()
     currentConnectionCount = manager.dict()
@@ -202,7 +205,8 @@ def printPeerConnectionStatuses(args, podList):
     def getConnectionCount(podName):
         try:
             cmd = getCurlCommand(ingress, podName, "peers")
-            results = json.loads(subprocess.run(cmd, capture_output=True).stdout)
+            results = json.loads(subprocess.run(
+                cmd, capture_output=True).stdout)
             n = len((results["authenticated_peers"]["inbound"] or []) +
                     (results["authenticated_peers"]["outbound"] or []))
         except Exception as e:
