@@ -1,5 +1,6 @@
 import argparse
 import random
+import shlex
 import re
 import toml
 import ipaddress
@@ -9,23 +10,30 @@ import json
 import multiprocessing
 from kubernetes.client.rest import ApiException
 from kubernetes import client, config
+import kubernetes.client
 
 PREFERRED_PEERS = "PREFERRED_PEERS"
 QUORUM_SET = "QUORUM_SET"
 
 
-def getCoreV1Api():
-    config.load_kube_config()
+def getCoreV1Api(args):
+    config.load_kube_config(config_file=args.kubeconfig)
     return client.CoreV1Api()
 
 
 def getPodList(args):
-    v1 = getCoreV1Api()
+    v1 = getCoreV1Api(args)
     return v1.list_namespaced_pod(args.namespace)
+
+def getIngress(args):
+    v1 = getCoreV1Api(args)
+    api_instance = kubernetes.client.ExtensionsV1beta1Api()
+    return api_instance.list_namespaced_ingress(args.namespace)
+
 
 
 def getConfigMapList(args):
-    v1 = getCoreV1Api()
+    v1 = getCoreV1Api(args)
     return v1.list_namespaced_config_map(args.namespace)
 
 
@@ -74,16 +82,23 @@ def getPodName(args):
     return "not found"
 
 
-def getCurlCommand(podName, cmd):
-    # TODO: Find out a way to get ingress from the API.
-    template = 'curl {}.stellar-supercluster.kube001.' \
-               'services.stellar-ops.com/{}/core/{}'
-    return template.format(podName[:16], podName, cmd)
+def getCurlCommand(ingress, podName, cmd):
+    host = ingress.items[0].spec.rules[0].host
+    ret = ''
+    if 'local' in host:
+        ip = ingress.items[0].status.load_balancer.ingress[0].ip
+        template = 'curl -H "Host: {}" "http://{}/{}/core/{}"'
+        ret = template.format(host, ip, podName, cmd)
+    else:
+        template = 'curl {}/{}/core/{}'
+        ret = template.format(host, podName, cmd)
+    return shlex.split(ret)
 
 
 def httpCommand(args):
     podName = getPodName(args)
-    process = subprocess.Popen(getCurlCommand(podName, args.command).split())
+    ingress = getIngress(args)
+    process = subprocess.Popen(getCurlCommand(ingress, podName, args.command))
     process.communicate()
 
 
@@ -113,7 +128,7 @@ def formatTimeDiff(td):
     return str(td).split('.', 1)[0]
 
 
-def printPodStatuses(podList):
+def printPodStatuses(args, podList):
     podNamesPerStatus = dict()
     durations = []
     for pod in podList.items:
@@ -132,15 +147,16 @@ def printPodStatuses(podList):
     printPodNamesAndStatuses(podNamesPerStatus)
 
 
-def printSCPStatuses(podList):
+def printSCPStatuses(args, podList):
     manager = multiprocessing.Manager()
     podNamesPerSCPStatus = manager.dict()
     podNamesPerLedger = manager.dict()
+    ingress = getIngress(args)
 
     def getSCPStatus(podName):
         try:
-            cmd = getCurlCommand(podName, "info")
-            output = subprocess.run(cmd.split(), capture_output=True).stdout
+            cmd = getCurlCommand(ingress, podName, "info")
+            output = subprocess.run(cmd, capture_output=True).stdout
             status = json.loads(output)["info"]["state"]
             ledgerInfo = json.loads(output)["info"]["ledger"]
             ledger = "Ledger {:>3}({})".format(ledgerInfo["num"],
@@ -169,7 +185,7 @@ def printSCPStatuses(podList):
     printPodNamesAndStatuses(podNamesPerLedger)
 
 
-def printPeerConnectionStatuses(podList, args):
+def printPeerConnectionStatuses(args, podList):
     configMapList = getConfigMapList(args)
     targetConnectionCount = dict()
     for pod in podList.items:
@@ -181,15 +197,16 @@ def printPeerConnectionStatuses(podList, args):
 
     manager = multiprocessing.Manager()
     currentConnectionCount = manager.dict()
+    ingress = getIngress(args)
 
     def getConnectionCount(podName):
         try:
-            cmd = getCurlCommand(podName, "peers")
-            results = json.loads(subprocess.run(cmd.split(),
-                                                capture_output=True).stdout)
+            cmd = getCurlCommand(ingress, podName, "peers")
+            results = json.loads(subprocess.run(cmd, capture_output=True).stdout)
             n = len((results["authenticated_peers"]["inbound"] or []) +
                     (results["authenticated_peers"]["outbound"] or []))
         except Exception as e:
+            print(e)
             n = 0
         currentConnectionCount[podName] = n
 
@@ -218,25 +235,26 @@ def printPeerConnectionStatuses(podList, args):
 
 
 def monitor(args):
+
     podList = getPodList(args)
     print("{} pods total".format(len(podList.items)))
     print()
     print("#Pod Status#")
     print()
-    printPodStatuses(podList)
+    printPodStatuses(args, podList)
     print()
     print("#SCP Status#")
     print()
-    printSCPStatuses(podList)
+    printSCPStatuses(args, podList)
     print()
     print("#Peer Connection Status#")
     print()
-    printPeerConnectionStatuses(podList, args)
+    printPeerConnectionStatuses(args, podList)
 
 
 def logs(args):
     try:
-        v1 = getCoreV1Api()
+        v1 = getCoreV1Api(args)
         apiResponse = v1.read_namespaced_pod_log(name=getPodName(args),
                                                  namespace=args.namespace,
                                                  container="stellar-core-run")
@@ -329,8 +347,10 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("-ns",
                                  "--namespace",
-                                 default="hidenori",
                                  help="namespace")
+    argument_parser.add_argument("-kc",
+                                 "--kubeconfig",
+                                 help="Kubernetes config file")
 
     subparsers = argument_parser.add_subparsers()
     addConfigmapParser(subparsers)
