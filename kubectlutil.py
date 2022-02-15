@@ -137,7 +137,7 @@ def printPodStatuses(args, podList):
         if status not in podNamesPerStatus:
             podNamesPerStatus[status] = []
         podNamesPerStatus[status].append(pod.metadata.name)
-        if pod.status.start_time.tzinfo is not None:
+        if pod.status.start_time is not None:
             now = datetime.datetime.now().astimezone(pod.status.start_time.tzinfo)
             durations.append(now - pod.status.start_time)
     durations.sort()
