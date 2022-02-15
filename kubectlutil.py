@@ -137,8 +137,9 @@ def printPodStatuses(args, podList):
         if status not in podNamesPerStatus:
             podNamesPerStatus[status] = []
         podNamesPerStatus[status].append(pod.metadata.name)
-        now = datetime.datetime.now().astimezone(pod.status.start_time.tzinfo)
-        durations.append(now - pod.status.start_time)
+        if pod.status.start_time.tzinfo is not None:
+            now = datetime.datetime.now().astimezone(pod.status.start_time.tzinfo)
+            durations.append(now - pod.status.start_time)
     durations.sort()
     if len(durations) > 0:
         print("youngest = {}".format(formatTimeDiff(durations[0])))
