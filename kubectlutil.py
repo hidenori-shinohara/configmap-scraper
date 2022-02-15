@@ -270,9 +270,10 @@ def logs(args):
 
 def peers(args):
     podName = getPodName(args)
-    cmd = getCurlCommand(podName, "peers")
+    ingress = getIngress(args)
+    cmd = getCurlCommand(ingress, podName, "peers")
     print("Running {}".format(cmd))
-    results = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
+    results = subprocess.run(cmd, stdout=subprocess.PIPE)
     content = json.loads(results.stdout)
     ls = (content["authenticated_peers"]["inbound"] or []) + \
          (content["authenticated_peers"]["outbound"] or [])

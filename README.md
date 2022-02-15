@@ -14,6 +14,13 @@ This runs the command `info` for the node `www-stellar-org-0`
 
 ## Monitor
 
-Example: `watch -n 10 python3 ~/kubectlutil/kubectlutil.py --namespace hidenori --kubeconfig ~/.kube/config monitor`
+Examples:
+- `watch -n 10 python3 ~/kubectlutil/kubectlutil.py --namespace hidenori --kubeconfig ~/.kube/config monitor`
+- `watch -n 10 python3 ~/kubectlutil/kubectlutil.py --namespace default --kubeconfig /etc/rancher/k3s/k3s.yaml monitor`
 
 This prints helpful information when running a network simulation and updates it every 10 seconds.
+
+## Other features
+
+- It also supports `logs` and `peers`.
+- This also works with k3s by passing the appropriate namespace (likely `default`) and kubeconfig (likely `/etc/rancher/k3s/k3s.yaml`)
