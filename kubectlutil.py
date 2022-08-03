@@ -71,6 +71,8 @@ def configmap(args):
                 cleanQuorumSet(parsedToml[QUORUM_SET])
                 result = json.dumps(parsedToml, sort_keys=True, indent=4)
             print(result)
+            return
+    print("There's no node named {}. Double check the name?".format(args.node))
 
 
 def getPodName(args):
