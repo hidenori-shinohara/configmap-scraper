@@ -104,6 +104,12 @@ def httpCommand(args):
     process.communicate()
 
 
+# Convert "sts-...-stellar-0" to "stellar-0"
+def nameExtractor(longName):
+    words = longName.split("-")
+    return "-".join(words[words.index("sts") + 1:])
+
+
 def printPodNamesAndStatuses(podNamesPerStatus):
     maxLength = 0
     for status in podNamesPerStatus:
@@ -112,10 +118,10 @@ def printPodNamesAndStatuses(podNamesPerStatus):
         podNameList = podNamesPerStatus[status]
         random.shuffle(podNameList)
         maxNumberToPrint = 5
-        podNamesToPrint = list(map(lambda longName: longName[21:],
-                                   podNameList[:min(maxNumberToPrint,
-                                                    len(podNameList))]))
-        podNamesToPrint.sort()
+        podNamesToPrint = list(map(nameExtractor, podNameList))
+        random.shuffle(podNamesToPrint)
+        if len(podNamesToPrint) >= maxNumberToPrint:
+            podNamesToPrint = podNamesToPrint[:maxNumberToPrint]
         dotsOrNoDots = "..." if len(podNameList) > maxNumberToPrint else ""
         template = "{:<" + str(maxLength) + "} => {:>3} pods: {}"
         print(template.format(status,
